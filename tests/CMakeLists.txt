@@ -23,8 +23,12 @@ endif()
 find_package(nlohmann_json 3.2.0 REQUIRED)
 # video decode
 set(VIDEODECODE_LIBS videodec-c++)
+# utils
+set(UTILS_LIBS utils-c++)
 # yolov8 infer
 set(YOLOV8_LIBS yolov8-c++)
+# yolov8obb infer
+set(YOLOV8OBB_LIBS yolov8obb-c++)
 
 set(OPENCV_LIBS opencv_highgui opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio)
 SET(CMAKE_CXX_FLAGS "-std=c++17  -pthread -Wall -Ofast -Wfatal-errors -D_MWAITXINTRIN_H_INCLUDED -O3")
@@ -46,3 +50,12 @@ target_include_directories(yolov8_test PRIVATE
     ${OPENCV_INCLUDE}
 )
 target_link_libraries(yolov8_test ${OPENCV_LIBS} ${VIDEODECODE_LIBS} ${YOLOV8_LIBS} nlohmann_json::nlohmann_json)
+
+# yolov8obbinfer
+add_executable(yolov8obb_test app_yolov8obb_test.cpp)
+target_include_directories(yolov8obb_test PRIVATE
+    ${ROOT_PATH}/src
+    ${ROOT_PATH}/api/include
+    ${OPENCV_INCLUDE}
+)
+target_link_libraries(yolov8obb_test ${OPENCV_LIBS} ${VIDEODECODE_LIBS} ${YOLOV8OBB_LIBS} ${UTILS_LIBS} nlohmann_json::nlohmann_json)

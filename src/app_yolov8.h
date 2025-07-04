@@ -2,7 +2,7 @@
 
 #include "app.h"
 #include "mplog.h"
-
+#include "yolov8infer.h"
 #include <iostream>
 #include <string>
 #include <dirent.h>
