@@ -10,7 +10,6 @@ public:
     virtual ~AppVideo();
     //创建RTSP推流接口
     bool CreateRtspDecoder(std::string rtspurl, int detype);
-    bool DecodeGetOneFrameLoop(cv::Mat &frame);
     bool DecodeGetOneFrame(cv::Mat &frame);
     bool DestoryRtspDecoder();
 
@@ -34,7 +33,7 @@ bool AppVideo::CreateRtspDecoder(std::string rtspurl, int detype)
         std::cout<< "Input rtspurl is empty"<<std::endl;
         return false;
     }
-    ENUM_ERROR_CODE code = InitRtspClientInstance(rtspurl.c_str(), detype, &m_pRtspDecoderInstance);
+    ENUM_ERROR_CODE code = InitRtspClientInstance(rtspurl.c_str(), &m_pRtspDecoderInstance, detype);
     if(code != ENUM_OK ){
         LOG_ERR("InitRtspClientInstance failed, return %s", GetErrorCodeName(code));
         return false;
@@ -45,16 +44,6 @@ bool AppVideo::CreateRtspDecoder(std::string rtspurl, int detype)
 bool AppVideo::DecodeGetOneFrame(cv::Mat &frame)
 {
     ENUM_ERROR_CODE code = GetOneFrameMatDataFromInstance(m_pRtspDecoderInstance, frame);
-    if(code != ENUM_OK ){
-        LOG_ERR("DecodeGetOneFrame failed, return %s", GetErrorCodeName(code));
-        return false;
-    }  
-    return true;
-}
-
-bool AppVideo::DecodeGetOneFrameLoop(cv::Mat &frame)
-{
-    ENUM_ERROR_CODE code = GetOneFrameMatDataLoopFromInstance(m_pRtspDecoderInstance, frame);
     if(code != ENUM_OK ){
         LOG_ERR("DecodeGetOneFrame failed, return %s", GetErrorCodeName(code));
         return false;
