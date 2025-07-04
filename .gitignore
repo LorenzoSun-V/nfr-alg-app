@@ -1,0 +1,4 @@
+**/build/
+api/libs-*/**
+data
+3rdlibs
