@@ -195,7 +195,7 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
                     // ReconnectCamera(appRtsp, rtspParam); // 重新连接 RTSP 流
                     if (!ReconnectCamera(appRtsp, rtspParam)) {
                         // 如果重连失败，可以选择 break 退出线程，或者 sleep 重试
-                        std::cerr << "RtspProducerThread: Reconnect failed, waiting before retry..." << std::endl;
+                        std::cerr << "RtspProducerThread: " << rtspParam.url << " reconnect failed, waiting before retry..." << std::endl;
                         std::this_thread::sleep_for(std::chrono::seconds(3));
                         continue; // 或 return;
                     }
