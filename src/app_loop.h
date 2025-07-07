@@ -12,8 +12,8 @@
 #include "app_video.h"
 #include "app_yolov8.h"
 #include "app_yolov8obb.h"
-#include "app_facefeature.h"
-#include "app_retinaface.h"
+// #include "app_facefeature.h"
+// #include "app_retinaface.h"
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
 #include "app_timer.h"
@@ -107,11 +107,27 @@ double calculateIoU( const std::vector<cv::Point>& polygon, const std::vector<cv
 
 
 // 重置相机
-void ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg){
+// void ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg){
+//     std::this_thread::sleep_for(std::chrono::seconds(3));
+//     bool ret_destory = rtspCamera->DestoryRtspDecoder();            
+//     bool ret_init = rtspCamera->CreateRtspDecoder(rtspcfg.url,rtspcfg.dtype);
+// }
+bool ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg) {
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    bool ret_destory = rtspCamera->DestoryRtspDecoder();            
-    bool ret_init = rtspCamera->CreateRtspDecoder(rtspcfg.url,rtspcfg.dtype);
+    if (!rtspCamera) {
+        rtspCamera = std::make_unique<AppVideo>();
+    }
+    if (!rtspCamera->DestoryRtspDecoder()) {
+        std::cerr << "ReconnectCamera: DestoryRtspDecoder failed" << std::endl;
+        return false;
+    }
+    if (!rtspCamera->CreateRtspDecoder(rtspcfg.url, rtspcfg.dtype)) {
+        std::cerr << "ReconnectCamera: CreateRtspDecoder failed" << std::endl;
+        return false;
+    }
+    return true;
 }
+
 
 // 生产者线程函数
 void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam, std::unique_ptr<AppVideo> appRtsp,GlobalParam& globalparam) {
@@ -126,8 +142,11 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
         return;
     }
 
+    rtspframe frameData;
+    frameData.frame = cv::Mat(2000, 2000, CV_8UC3);
+
     while (sharedData.isRunning) {
-        rtspframe frameData;
+        
         NowTime time;
         bool ret = appRtsp->DecodeGetOneFrame(frameData.frame); // 从 RTSP 流中获取帧
 
@@ -139,11 +158,23 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
             errorCounter = 0; // 重置错误计数器
 
             // 将帧放入所有相关类型的队列
+            // for (const auto& type : frameData.model_types) {
+            //     std::lock_guard<std::mutex> lock(sharedData.queueMutexes[type]);
+            //     sharedData.frameQueues[type].push(frameData); // 将帧放入队列
+            //     sharedData.ready = true; // 设置 ready 标志
+            //     // std::cout << "Producer: Frame with types [" << type << "] from camera " << frameData.rtsp_id << " added to queue." << std::endl;
+            //     sharedData.queueCVs[type].notify_one();
+            // }
             for (const auto& type : frameData.model_types) {
                 std::lock_guard<std::mutex> lock(sharedData.queueMutexes[type]);
-                sharedData.frameQueues[type].push(frameData); // 将帧放入队列
-                sharedData.ready = true; // 设置 ready 标志
-                // std::cout << "Producer: Frame with types [" << type << "] from camera " << frameData.rtsp_id << " added to queue." << std::endl;
+                auto& queue = sharedData.frameQueues[type];
+
+                if (queue.size() >= sharedData.MAX_QUEUE_SIZE) {
+                    // 队列已满，丢弃最老的帧，确保队列里都是最新的帧
+                    queue.pop();
+                }
+                queue.push(frameData);
+                sharedData.ready = true;
                 sharedData.queueCVs[type].notify_one();
             }
             // 帧获取间隔
@@ -161,7 +192,13 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
                           << rtspParam.id << "..." << std::endl;
 
                 try {
-                    ReconnectCamera(appRtsp, rtspParam); // 重新连接 RTSP 流
+                    // ReconnectCamera(appRtsp, rtspParam); // 重新连接 RTSP 流
+                    if (!ReconnectCamera(appRtsp, rtspParam)) {
+                        // 如果重连失败，可以选择 break 退出线程，或者 sleep 重试
+                        std::cerr << "RtspProducerThread: Reconnect failed, waiting before retry..." << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(3));
+                        continue; // 或 return;
+                    }
                     errorCounter = 0;     // 重置错误计数器
                     std::cerr << "RtspProducerThread: Reconnected to RTSP stream " << rtspParam.id << std::endl;
                 } catch (const std::exception& e) {
@@ -218,7 +255,7 @@ void HBBProcess(std::unique_ptr<AppYolov8> &appfiresmoke, const rtspframe &frame
             int class_id = result.classID;
             SingalRtspRegionParam rtsp_region;
             for(auto& item: rtsp_regions.rtspRegionParams){
-                if(class_id = item.id){
+                if(class_id == item.id){
                     rtsp_region = item;
                 }
             }
@@ -226,17 +263,17 @@ void HBBProcess(std::unique_ptr<AppYolov8> &appfiresmoke, const rtspframe &frame
             std::string alarmType;
             
             //判断是否要计算iou
-            if(rtsp_region.switch_flag){
-                double iou = calculateIoU(rtsp_region.points, rectToPoints(cv::Rect(result.x, result.y, result.w, result.h)));
-                if(iou > rtsp_region.iou_thresh){
-                    alarmType = std::to_string(result.classID);
-                    //保存图片
-                    // cv::imwrite(std::to_string(result.classID) + std::to_string(frameData.rtsp_id) + frameData.timestamp +".jpg");
-                }
-            }
-            else{
-                alarmType = std::to_string(result.classID);
-            }
+            // if(rtsp_region.switch_flag){
+            //     double iou = calculateIoU(rtsp_region.points, rectToPoints(cv::Rect(result.x, result.y, result.w, result.h)));
+            //     if(iou > rtsp_region.iou_thresh){
+            //         alarmType = std::to_string(result.classID);
+            //         //保存图片
+            //         // cv::imwrite(std::to_string(result.classID) + std::to_string(frameData.rtsp_id) + frameData.timestamp +".jpg");
+            //     }
+            // }
+            // else{
+            //     alarmType = std::to_string(result.classID);
+            // }
 
             if (!alarmType.empty()) {
                 // 如果 alarmType 已存在，添加到对应的列表中；否则创建新列表
@@ -246,7 +283,11 @@ void HBBProcess(std::unique_ptr<AppYolov8> &appfiresmoke, const rtspframe &frame
                 alarmMap[alarmType].push_back(alarmInfo);
             }
         }   
-    }   
+    }
+    if (results.size() > 0){
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_hbb_" + frameData.timestamp + ".jpg";
+        cv::imwrite(img_name, frameData.frame);
+    }
 }
 
 // OBB检测处理函数
@@ -286,22 +327,23 @@ void OBBProcess(std::unique_ptr<AppYolov8obb> &appYolov8OBB, const rtspframe &fr
             int return_id = result.classID + globalparam.hbb_classnum;
             SingalRtspRegionParam rtsp_region;
             for(auto& item: rtsp_regions.rtspRegionParams){
-                if(return_id = item.id){
+                if(return_id == item.id){
                     rtsp_region = item;
                 }
             }
+
             //判断是否要计算iou
-            if(rtsp_region.switch_flag){
-                double iou = calculateIoU(rtsp_region.points, rectToPoints(cv::Rect(result.x, result.y, result.w, result.h)));
-                if(iou > rtsp_region.iou_thresh){
-                    alarmType = std::to_string(result.classID);
-                    //保存图片
-                    // cv::imwrite("obstacle" + std::to_string(frameData.rtsp_id) + frameData.timestamp +".jpg");
-                }
-            }
-            else{
-                alarmType = std::to_string(result.classID);
-            }
+            // if(rtsp_region.switch_flag){
+            //     double iou = calculateIoU(rtsp_region.points, rectToPoints(cv::Rect(result.x, result.y, result.w, result.h)));
+            //     if(iou > rtsp_region.iou_thresh){
+            //         alarmType = std::to_string(result.classID);
+            //         //保存图片
+            //         // cv::imwrite("obstacle" + std::to_string(frameData.rtsp_id) + frameData.timestamp +".jpg");
+            //     }
+            // }
+            // else{
+            //     alarmType = std::to_string(result.classID);
+            // }
 
             if (!alarmType.empty()) {
                 // 如果 alarmType 已存在，添加到对应的列表中；否则创建新列表
@@ -311,6 +353,10 @@ void OBBProcess(std::unique_ptr<AppYolov8obb> &appYolov8OBB, const rtspframe &fr
                 alarmMap[alarmType].push_back(alarmInfo);
             }
         }   
+    }
+    if (results.size() > 0){
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_obb_" + frameData.timestamp + ".jpg";
+        cv::imwrite(img_name, frameData.frame);
     }
 }
 
@@ -395,7 +441,7 @@ void ConsumerThread(SharedData& sharedData,
                 RtspRegionParams regionParam;
                 //根据camera_id找到对应的配置
                 for(auto& region: regionParams){
-                    if (rtsp_id = region.camera_id){
+                    if (rtsp_id == region.camera_id){
                         regionParam = region;
                     }
                 }
@@ -408,7 +454,7 @@ void ConsumerThread(SharedData& sharedData,
                 RtspRegionParams regionParam;
                 //根据camera_id找到对应的配置
                 for(auto& region: regionParams){
-                    if (rtsp_id = region.camera_id){
+                    if (rtsp_id == region.camera_id){
                         regionParam = region;
                     }
                 }

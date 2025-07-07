@@ -61,3 +61,5 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
+// ./yolov8obb_test /home/kylin/nofar-ai-box/models/obb_class11n_device_0.2_u8.rknn /home/kylin/nofar-ai-box/asserts/img/1750733108561_182.jpg

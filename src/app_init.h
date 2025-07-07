@@ -115,14 +115,14 @@ inline void InitConfigParam(const char* jsonfile,
             global_param.hbb_classnum = model["classnum"].get<int>();
             global_param.model_types.push_back("hbb");
             global_param.typeIntervalMap["hbb"] = model["time"].get<int>();
-            hbb_cfg.model_switch = 1;
+            hbb_cfg.model_switch = model["switch"].get<int>();
         }
         if (model["name"] == "obb") {
             obb_cfg.model_path = model["path"].get<std::string>();
             global_param.obb_classnum = model["classnum"].get<int>();
             global_param.model_types.push_back("obb");
             global_param.typeIntervalMap["obb"] = model["time"].get<int>();
-            obb_cfg.model_switch = 1;
+            obb_cfg.model_switch = model["switch"].get<int>();
         }
     }
 
