@@ -10,7 +10,7 @@ std::unique_ptr<AppYolov8> InitYolov8Infer(string model_path)
 {
     
     std::unique_ptr<AppYolov8> appInfer = std::make_unique<AppYolov8>();
-    bool bret = appInfer->CreateInstance(model_path);
+    bool bret = appInfer->CreateInstance(model_path, 0, 0.25, 0.45, 0);
     if(!bret) {
         LOG_ERR("AppYolov8 CreateInstance ERROR");
         std::cout<<"AppYolov8 CreateInstance ERROR"<<std::endl;

@@ -24,9 +24,10 @@ inline void InitRtspParams(const json& j_camera, RtspServerParam& rtsp) {
     // std::cout << "InitRtspParams successful!!" << std::endl;
     // 提取模型类型：遍历models中的obb/hbb，根据switch标志决定是否启用
     rtsp.model_types.clear();
+    rtsp.model_names.clear();
     for (const auto& model : j_camera["models"]) {
         // std::cout << model["name"].get<std::string>() << std::endl;
-        rtsp.model_types.push_back(model["name"].get<std::string>());
+        rtsp.model_names.push_back(model["name"].get<std::string>());
     }
     
 }
@@ -67,8 +68,9 @@ inline std::unique_ptr<AppVideo> InitRTSP(const RtspServerParam& rtsp) {
 inline void InitConfigParam(const char* jsonfile, 
                             std::vector<RtspServerParam>& rtspParams, 
                             std::vector<RtspRegionParams>& rtspRegionParams,
-                            HBBParam& hbb_cfg, 
-                            OBBParam& obb_cfg,
+                            std::vector<ModelParam>& modelParams,
+                            // HBBParam& hbb_cfg, 
+                            // OBBParam& obb_cfg,
                             SharedData& rtsp_sharedData, 
                             GlobalParam& global_param,  
                             HTTPParam& httpcfg) 
@@ -110,21 +112,62 @@ inline void InitConfigParam(const char* jsonfile,
     std::cout << "RTSP区域参数初始化成功! 数量: " << rtspRegionParams.size() << std::endl;
     // 4. 初始化模型参数（从全局models字段提取）
     for (const auto& model : j["models"]) {
-        if (model["name"] == "hbb") {
-            hbb_cfg.model_path = model["path"].get<std::string>();
-            global_param.hbb_classnum = model["classnum"].get<int>();
+        // if (model["name"] == "hbb") {
+        //     hbb_cfg.model_path = model["path"].get<std::string>();
+        //     // global_param.hbb_classnum = model["classnum"].get<int>();
+        //     hbb_cfg.model_start_class_id = model["model_start_class_id"].get<int>();
+        //     hbb_cfg.conf_thresh = model["conf_thresh"].get<float>();
+        //     hbb_cfg.nms_thresh = model["nms_thresh"].get<float>();
+        //     hbb_cfg.device = model["device"].get<int>();
+        //     global_param.model_types.push_back("hbb");
+        //     global_param.typeIntervalMap["hbb"] = model["time"].get<int>();
+        //     hbb_cfg.model_switch = model["switch"].get<int>();
+        // }
+        // if (model["name"] == "obb") {
+        //     obb_cfg.model_path = model["path"].get<std::string>();
+        //     // global_param.obb_classnum = model["classnum"].get<int>();
+        //     obb_cfg.model_start_class_id = model["model_start_class_id"].get<int>();
+        //     obb_cfg.conf_thresh = model["conf_thresh"].get<float>();
+        //     obb_cfg.nms_thresh = model["nms_thresh"].get<float>();
+        //     obb_cfg.device = model["device"].get<int>();
+        //     global_param.model_types.push_back("obb");
+        //     global_param.typeIntervalMap["obb"] = model["time"].get<int>();
+        //     obb_cfg.model_switch = model["switch"].get<int>();
+        // }
+        if (model["type"] == "hbb") {
+            ModelParam modelParam;
+            modelParam.model_path = model["path"].get<std::string>();
+            modelParam.model_start_class_id = model["model_start_class_id"].get<int>();
+            modelParam.conf_thresh = model["conf_thresh"].get<float>();
+            modelParam.nms_thresh = model["nms_thresh"].get<float>();
+            modelParam.device = model["device"].get<int>();
+            modelParam.model_switch = model["switch"].get<int>();
+            modelParam.model_type = "hbb";
+            modelParam.model_name = model["name"].get<std::string>();
             global_param.model_types.push_back("hbb");
-            global_param.typeIntervalMap["hbb"] = model["time"].get<int>();
-            hbb_cfg.model_switch = model["switch"].get<int>();
-            hbb_cfg.device_id = model["device"].get<int>(); // 新增设备ID
+            global_param.model_names.push_back(model["name"].get<std::string>());
+            // global_param.typeIntervalMap["hbb"] = model["time"].get<int>();
+            global_param.typeIntervalMap[model["name"].get<std::string>()] = model["time"].get<int>();
+            modelParams.push_back(modelParam);
         }
-        if (model["name"] == "obb") {
-            obb_cfg.model_path = model["path"].get<std::string>();
-            global_param.obb_classnum = model["classnum"].get<int>();
+        else if (model["type"] == "obb") {
+            ModelParam modelParam;
+            modelParam.model_path = model["path"].get<std::string>();
+            modelParam.model_start_class_id = model["model_start_class_id"].get<int>();
+            modelParam.conf_thresh = model["conf_thresh"].get<float>();
+            modelParam.nms_thresh = model["nms_thresh"].get<float>();
+            modelParam.device = model["device"].get<int>();
+            modelParam.model_switch = model["switch"].get<int>();
+            modelParam.model_type = "obb";
+            modelParam.model_name = model["name"].get<std::string>();
             global_param.model_types.push_back("obb");
-            global_param.typeIntervalMap["obb"] = model["time"].get<int>();
-            obb_cfg.model_switch = model["switch"].get<int>();
-            obb_cfg.device_id = model["device"].get<int>(); // 新增设备ID
+            global_param.model_names.push_back(model["name"].get<std::string>());
+            // global_param.typeIntervalMap["obb"] = model["time"].get<int>();
+            global_param.typeIntervalMap[model["name"].get<std::string>()] = model["time"].get<int>();
+            modelParams.push_back(modelParam);
+        }
+        else {
+            std::cerr << "Unknown model type: " << model["type"].get<std::string>() << std::endl;
         }
     }
 
@@ -162,7 +205,11 @@ inline std::optional<std::unique_ptr<AppType>> InitModelInfer(const std::string&
         return std::nullopt;
     }
 
-    bool bret = (*appInfer)->CreateInstance(modelcfg.model_path, modelcfg.device_id);
+    bool bret = (*appInfer)->CreateInstance(modelcfg.model_path, 
+                                            modelcfg.device, 
+                                            modelcfg.conf_thresh, 
+                                            modelcfg.nms_thresh, 
+                                            modelcfg.model_start_class_id);
     if (!bret) {
         return HandleInitialization<AppType>(modelName, false, "CreateInstance failed");
     }

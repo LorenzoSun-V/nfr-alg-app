@@ -25,8 +25,7 @@ int main(int argc, char* argv[])
         sharedData.isRunning = true;
 
         // 模型参数...
-        HBBParam hbb_cfg;
-        OBBParam obb_cfg;
+        std::vector<ModelParam> modelParams;
 
         GlobalParam globalcfg;
         // NTPParam ntpcfg;
@@ -34,15 +33,23 @@ int main(int argc, char* argv[])
 
         std::map<std::string, std::map<std::string, json>> globalAlarmMap;
 
-        InitConfigParam(jsonfile, rtspParams, rtspRegionParams, hbb_cfg, obb_cfg, sharedData, globalcfg, httpcfg);
+        InitConfigParam(jsonfile, rtspParams, rtspRegionParams, modelParams, sharedData, globalcfg, httpcfg);
+        // InitConfigParam(jsonfile, rtspParams, rtspRegionParams, hbb_cfg, obb_cfg, sharedData, globalcfg, httpcfg);
         // InitConfigParam(jsonfile, rtspParams, rtspRegionParams, hbb_cfg, obb_cfg, sharedData, globalcfg, ntpcfg, httpcfg);
         
-        std::vector<std::string> all_model_type = globalcfg.model_types;
-        for (const auto& type : all_model_type) {
-            sharedData.frameQueues[type];
-            sharedData.queueMutexes[type];
-            sharedData.queueCVs[type];
-            sharedData.sharedAlarmMap[type];
+        // std::vector<std::string> all_model_type = globalcfg.model_types;
+        // for (const auto& type : all_model_type) {
+        //     sharedData.frameQueues[type];
+        //     sharedData.queueMutexes[type];
+        //     sharedData.queueCVs[type];
+        //     sharedData.sharedAlarmMap[type];
+        // }
+        std::vector<std::string> all_models = globalcfg.model_names;
+        for (const auto& name : all_models) {
+            sharedData.frameQueues[name];
+            sharedData.queueMutexes[name];
+            sharedData.queueCVs[name];
+            sharedData.sharedAlarmMap[name];
         }
 
         // 初始化rtsp流...
@@ -63,7 +70,9 @@ int main(int argc, char* argv[])
         }
         
         // 启动消费者线程
-        CreateConsumerThreads(sharedData, rtspRegionParams, hbb_cfg, obb_cfg, globalcfg, httpcfg);
+        // CreateConsumerThreads(sharedData, rtspRegionParams, hbb_cfg, obb_cfg, globalcfg, httpcfg);
+        CreateConsumerThreads(sharedData, rtspRegionParams, modelParams, globalcfg, httpcfg);
+
         // 等待线程结束
         for (auto& thread : producerThreads) {
             if (thread.joinable()) {

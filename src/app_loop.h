@@ -107,21 +107,11 @@ double calculateIoU( const std::vector<cv::Point>& polygon, const std::vector<cv
 
 
 // 重置相机
-// void ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg){
-//     std::this_thread::sleep_for(std::chrono::seconds(3));
-//     bool ret_destory = rtspCamera->DestoryRtspDecoder();            
-//     bool ret_init = rtspCamera->CreateRtspDecoder(rtspcfg.url,rtspcfg.dtype);
-// }
-bool ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg) {
+void ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg){
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    rtspCamera.reset(new AppVideo());
-    if (!rtspCamera->CreateRtspDecoder(rtspcfg.url, rtspcfg.dtype)) {
-        std::cerr << "ReconnectCamera: CreateRtspDecoder failed" << std::endl;
-        return false;
-    }
-    return true;
+    bool ret_destory = rtspCamera->DestoryRtspDecoder();            
+    bool ret_init = rtspCamera->CreateRtspDecoder(rtspcfg.url,rtspcfg.dtype);
 }
-
 
 // 生产者线程函数
 void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam, std::unique_ptr<AppVideo> appRtsp,GlobalParam& globalparam) {
@@ -149,6 +139,7 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
             frameData.timestamp = formatTimestamp(time);
             frameData.rtsp_id = rtspParam.id;
             frameData.model_types = rtspParam.model_types;
+            frameData.model_names = rtspParam.model_names;
             errorCounter = 0; // 重置错误计数器
 
             // 将帧放入所有相关类型的队列
@@ -159,9 +150,9 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
             //     // std::cout << "Producer: Frame with types [" << type << "] from camera " << frameData.rtsp_id << " added to queue." << std::endl;
             //     sharedData.queueCVs[type].notify_one();
             // }
-            for (const auto& type : frameData.model_types) {
-                std::lock_guard<std::mutex> lock(sharedData.queueMutexes[type]);
-                auto& queue = sharedData.frameQueues[type];
+            for (const auto& name : frameData.model_names) {
+                std::lock_guard<std::mutex> lock(sharedData.queueMutexes[name]);
+                auto& queue = sharedData.frameQueues[name];
 
                 if (queue.size() >= sharedData.MAX_QUEUE_SIZE) {
                     // 队列已满，丢弃最老的帧，确保队列里都是最新的帧
@@ -169,7 +160,7 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
                 }
                 queue.push(frameData);
                 sharedData.ready = true;
-                sharedData.queueCVs[type].notify_one();
+                sharedData.queueCVs[name].notify_one();
             }
             // 帧获取间隔
             std::this_thread::sleep_for(interval);
@@ -186,13 +177,7 @@ void RtspProducerThread(SharedData& sharedData, const RtspServerParam& rtspParam
                           << rtspParam.id << "..." << std::endl;
 
                 try {
-                    // ReconnectCamera(appRtsp, rtspParam); // 重新连接 RTSP 流
-                    if (!ReconnectCamera(appRtsp, rtspParam)) {
-                        // 如果重连失败，可以选择 break 退出线程，或者 sleep 重试
-                        std::cerr << "RtspProducerThread: " << rtspParam.url << " reconnect failed, waiting before retry..." << std::endl;
-                        std::this_thread::sleep_for(std::chrono::seconds(3));
-                        continue; // 或 return;
-                    }
+                    ReconnectCamera(appRtsp, rtspParam); // 重新连接 RTSP 流
                     errorCounter = 0;     // 重置错误计数器
                     std::cerr << "RtspProducerThread: Reconnected to RTSP stream " << rtspParam.id << std::endl;
                 } catch (const std::exception& e) {
@@ -278,10 +263,11 @@ void HBBProcess(std::unique_ptr<AppYolov8> &appfiresmoke, const rtspframe &frame
             }
         }   
     }
-    if (results.size() > 0 && frameData.rtsp_id == 8){
-        std::string model_name = appfiresmoke->GetModelName();
-        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + model_name + "_" + frameData.timestamp + ".jpg";
-        cv::imwrite(img_name, frameData.frame);
+    if (results.size() > 0 && frameData.rtsp_id == 8) {
+        // cv::Mat frame_draw = frameData.frame.clone();
+        // appfiresmoke->DrawInferRectResult(frame, results);
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + appfiresmoke->GetModelName() + "_" + frameData.timestamp + ".jpg";
+        cv::imwrite(img_name, frame);
     }
 }
 
@@ -350,9 +336,10 @@ void OBBProcess(std::unique_ptr<AppYolov8obb> &appYolov8OBB, const rtspframe &fr
         }   
     }
     if (results.size() > 0 && frameData.rtsp_id == 8){
-        std::string model_name = appYolov8OBB->GetModelName();
-        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + model_name + "_" + frameData.timestamp + ".jpg";
-        cv::imwrite(img_name, frameData.frame);
+        // cv::Mat frame_draw = frameData.frame.clone();
+        // appYolov8OBB->DrawInferRectResult(frame, results);
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + appYolov8OBB->GetModelName() + "_" + frameData.timestamp + ".jpg";
+        cv::imwrite(img_name, frame);
     }
 }
 
@@ -387,77 +374,87 @@ void SendHttpRequest(const json& data, CURL* curl, const HTTPParam& httpcfg) {
 
 // 消费者线程函数
 void ConsumerThread(SharedData& sharedData, 
+                    const std::string& modelName,
                     const std::string& modelType,
                     std::unique_ptr<AppYolov8> apphbb,
                     std::unique_ptr<AppYolov8obb> appobb,
                     const std::vector<RtspRegionParams>& regionParams,
+                    const ModelParam& modelParam,
                     const GlobalParam& globalParam,
                     const HTTPParam& httpcfg) {
-    // std::cout << "ConsumerThread started for model type: " << modelType << std::endl;
+    
+    std::cout << "ConsumerThread started for model: " << modelName << " (type: " << modelType << ")" << std::endl;
+    
     std::unordered_map<std::string, std::chrono::seconds> typeIntervalMap;
     for (const auto& [key, value] : globalParam.typeIntervalMap) {
         typeIntervalMap[key] = std::chrono::seconds(value);
     }
-
-
+    
     auto lastSendTime = std::chrono::steady_clock::now();
     std::map<std::string, json> accumulatedAlarmMap;
-
+    
     CURL* curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Failed to initialize CURL" << std::endl;
         return;
     }
+    
     while (sharedData.isRunning) {
         std::vector<rtspframe> frames;
-        std::map<std::string, json> currentAlarmMap;  // 按 alarm_type 分类存储报警信息
-
-        // 从帧队列中获取帧
+        std::map<std::string, json> currentAlarmMap;
+        
+        // 从帧队列中获取帧 - 使用模型名称作为键
         {
-            std::unique_lock<std::mutex> lock(sharedData.queueMutexes[modelType]);
-            sharedData.queueCVs[modelType].wait(lock, [&] { 
-                return !sharedData.frameQueues[modelType].empty() || !sharedData.isRunning; 
+            std::unique_lock<std::mutex> lock(sharedData.queueMutexes[modelName]);
+            sharedData.queueCVs[modelName].wait(lock, [&] { 
+                return !sharedData.frameQueues[modelName].empty() || !sharedData.isRunning; 
             });
-
+            
             if (!sharedData.isRunning) break;
-
+            
             // 取出所有帧
-            while (!sharedData.frameQueues[modelType].empty()) {
-                frames.push_back(sharedData.frameQueues[modelType].front());
-                sharedData.frameQueues[modelType].pop();
+            while (!sharedData.frameQueues[modelName].empty()) {
+                frames.push_back(sharedData.frameQueues[modelName].front());
+                sharedData.frameQueues[modelName].pop();
             }
         }
-
+        
+        std::cout << "Model " << modelName << " processing " << frames.size() << " frames" << std::endl;
+        
         // 处理帧数据
         for (const auto& frame : frames) {
-            if (modelType == "hbb" && apphbb) {
-                // 烟雾检测推理逻辑
-                // std::cout << " HBB inference " << std::endl;
-                int rtsp_id = frame.rtsp_id;
-                RtspRegionParams regionParam;
-                //根据camera_id找到对应的配置
-                for(auto& region: regionParams){
-                    if (rtsp_id == region.camera_id){
-                        regionParam = region;
-                    }
+            int rtsp_id = frame.rtsp_id;
+            RtspRegionParams regionParam;
+            
+            // 根据camera_id找到对应的配置
+            bool found = false;
+            for(const auto& region : regionParams){
+                if (rtsp_id == region.camera_id){
+                    regionParam = region;
+                    found = true;
+                    break;
                 }
-                HBBProcess(apphbb, frame, regionParam, globalParam ,currentAlarmMap);
+            }
+            
+            if (!found) {
+                std::cerr << "Region parameter not found for camera_id: " << rtsp_id << std::endl;
+                continue;
+            }
+            
+            // 根据模型类型进行推理
+            if (modelType == "hbb" && apphbb) {
+                // std::cout << "Performing HBB inference for model: " << modelName << std::endl;
+                HBBProcess(apphbb, frame, regionParam, globalParam, currentAlarmMap);
             } 
             else if (modelType == "obb" && appobb) {
-                // air_bottle 推理逻辑
-                // std::cout << " OBB inference " << std::endl;
-                int rtsp_id = frame.rtsp_id;
-                RtspRegionParams regionParam;
-                //根据camera_id找到对应的配置
-                for(auto& region: regionParams){
-                    if (rtsp_id == region.camera_id){
-                        regionParam = region;
-                    }
-                }
-                OBBProcess(appobb, frame, regionParam, globalParam ,currentAlarmMap);
+                // std::cout << "Performing OBB inference for model: " << modelName << std::endl;
+                OBBProcess(appobb, frame, regionParam, globalParam, currentAlarmMap);
+            }
+            else {
+                std::cerr << "No valid inference app for model: " << modelName << " (type: " << modelType << ")" << std::endl;
             }
         }
-
+        
         // 合并当前帧的报警信息
         for (const auto& [alarmType, alarmList] : currentAlarmMap) {
             if (accumulatedAlarmMap.find(alarmType) == accumulatedAlarmMap.end()) {
@@ -467,84 +464,115 @@ void ConsumerThread(SharedData& sharedData,
                 accumulatedAlarmMap[alarmType].push_back(alarm);
             }
         }
-
+        
         // 检查是否需要发送结果
         auto currentTime = std::chrono::steady_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastSendTime);
-
-        if (elapsedTime >= typeIntervalMap[modelType]) {
+        
+        // 使用模型类型来获取时间间隔
+        auto intervalIt = typeIntervalMap.find(modelType);
+        if (intervalIt != typeIntervalMap.end() && elapsedTime >= intervalIt->second) {
             
             if (!accumulatedAlarmMap.empty()) {
-                
-                // 发送累积的报警信息
+                std::cout << "Sending HTTP request for model: " << modelName << std::endl;
                 SendHttpRequest(accumulatedAlarmMap, curl, httpcfg);
-                
-                // 清空累积的报警信息
                 accumulatedAlarmMap.clear();
-                
-                // 更新最后发送时间
-                lastSendTime = currentTime;
-                
             }
             
-            // 更新最后发送时间
             lastSendTime = currentTime;
         }
-
-        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
     }
+    
+    std::cout << "ConsumerThread ended for model: " << modelName << std::endl;
     curl_easy_cleanup(curl);
 }
 
 void CreateConsumerThreads(SharedData& sharedData, 
                            const std::vector<RtspRegionParams>& regionParams,
-                           HBBParam& hbb_cfg,
-                           OBBParam& obb_cfg,
+                           const std::vector<ModelParam>& modelParams,
                            const GlobalParam& global_cfg,
                            const HTTPParam& httpcfg) {
-    std::unordered_map<std::string, std::thread> consumerThreads;
-
+    
+    std::vector<std::thread> consumerThreads;
+    
     try {
-        // 统计不同的 model_type
-        for (const auto& model_type : global_cfg.model_types) {
-            // 为每种 model_type 创建一个消费者线程
-            if (model_type == "hbb") {
-                // std::cout << "hbbhbbhbbhbbhbbhbbhbbhbbhbb" << std::endl;
-                std::unique_ptr<AppYolov8> apphbb = InitHBBInfer(hbb_cfg).value();
-                consumerThreads[model_type] = std::thread(
-                    ConsumerThread, 
-                    std::ref(sharedData), 
-                    model_type,  // 传递 const std::string&
-                    std::move(apphbb),           // 移动所有权
-                    std::unique_ptr<AppYolov8obb>(nullptr),  // 传递空的 unique_ptr
-                    std::ref(regionParams), 
-                    std::ref(global_cfg),
-                    std::ref(httpcfg)
-                );
-                // std::cout << "Consumer thread created for model type: " << model_type << std::endl;
+        // 为每个模型创建一个消费者线程
+        for (const auto& modelParam : modelParams) {
+            std::cout << "Creating consumer thread for model: " << modelParam.model_name 
+                      << " (type: " << modelParam.model_type << ")" << std::endl;
+            
+            if (modelParam.model_type == "hbb") {
+                // 创建HBB推理实例
+                HBBParam hbb_cfg;
+                hbb_cfg.model_name = modelParam.model_name;
+                hbb_cfg.model_path = modelParam.model_path;
+                hbb_cfg.conf_thresh = modelParam.conf_thresh;
+                hbb_cfg.nms_thresh = modelParam.nms_thresh;
+                hbb_cfg.device = modelParam.device;
+                hbb_cfg.model_start_class_id = modelParam.model_start_class_id;
+                
+                auto apphbb = InitHBBInfer(hbb_cfg);
+                if (apphbb.has_value()) {
+                    consumerThreads.emplace_back(
+                        ConsumerThread, 
+                        std::ref(sharedData), 
+                        modelParam.model_name,
+                        modelParam.model_type,
+                        std::move(apphbb.value()),
+                        std::unique_ptr<AppYolov8obb>(nullptr),
+                        std::ref(regionParams), 
+                        std::ref(modelParam),
+                        std::ref(global_cfg),
+                        std::ref(httpcfg)
+                    );
+                    std::cout << "HBB consumer thread created for model: " << modelParam.model_name << std::endl;
+                } else {
+                    std::cerr << "Failed to initialize HBB model: " << modelParam.model_name << std::endl;
+                }
             } 
-            else if (model_type == "obb") {
-                // std::cout << "obbobbobbobbobbobbobb" << std::endl;
-                std::unique_ptr<AppYolov8obb> appobb = InitOBBInfer(obb_cfg).value();
-                consumerThreads[model_type] = std::thread(
-                    ConsumerThread, 
-                    std::ref(sharedData), 
-                    model_type,  // 传递 const std::string&
-                    std::unique_ptr<AppYolov8>(nullptr),  // 传递空的 unique_ptr
-                    std::move(appobb),           // 移动所有权
-                    std::ref(regionParams), 
-                    std::ref(global_cfg),
-                    std::ref(httpcfg)
-                );
-                // std::cout << "Consumer thread created for model type: " << model_type << std::endl;
+            else if (modelParam.model_type == "obb") {
+                // 创建OBB推理实例
+                OBBParam obb_cfg;
+                obb_cfg.model_name = modelParam.model_name;
+                obb_cfg.model_path = modelParam.model_path;
+                obb_cfg.conf_thresh = modelParam.conf_thresh;
+                obb_cfg.nms_thresh = modelParam.nms_thresh;
+                obb_cfg.device = modelParam.device;
+                obb_cfg.model_start_class_id = modelParam.model_start_class_id;
+                
+                auto appobb = InitOBBInfer(obb_cfg);
+                if (appobb.has_value()) {
+                    consumerThreads.emplace_back(
+                        ConsumerThread, 
+                        std::ref(sharedData), 
+                        modelParam.model_name,
+                        modelParam.model_type,
+                        std::unique_ptr<AppYolov8>(nullptr),
+                        std::move(appobb.value()),
+                        std::ref(regionParams), 
+                        std::ref(modelParam),
+                        std::ref(global_cfg),
+                        std::ref(httpcfg)
+                    );
+                    std::cout << "OBB consumer thread created for model: " << modelParam.model_name << std::endl;
+                } else {
+                    std::cerr << "Failed to initialize OBB model: " << modelParam.model_name << std::endl;
+                }
+            }
+            else {
+                std::cerr << "Unknown model type: " << modelParam.model_type << " for model: " << modelParam.model_name << std::endl;
             }
         }
+        
+        std::cout << "Created " << consumerThreads.size() << " consumer threads" << std::endl;
+        
     } catch (const std::exception& e) {
         std::cerr << "Exception caught while creating consumer threads: " << e.what() << std::endl;
     }
-
-    // 等待消费者线程结束
-    for (auto& [modelType, thread] : consumerThreads) {
+    
+    // 等待所有消费者线程结束
+    for (auto& thread : consumerThreads) {
         if (thread.joinable()) {
             thread.join();
         }

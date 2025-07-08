@@ -39,7 +39,21 @@ extern "C"
 		cv::Mat frame,
         std::vector<DetBox> &detBoxs
     );   
-                    
+
+    /*
+     * @brief 批量输出模型检测结果
+     * @param  pDeepInstance         传入模型句柄
+     * @param  batch_images          批量输入批量检测图片，最大数量根据模型batch决定
+     * @param  batch_result          批量输出检测结果
+     *
+     * @return  ENUM_ERROR_CODE      返回错误码
+     */
+    ENUM_ERROR_CODE BatchInferenceYolov8obbGetDetectResult(
+        void* pDeepInstance,
+        std::vector<cv::Mat> batch_images,
+        std::vector<std::vector<DetBox>> &batch_result
+    );  
+
    /*
     * @brief 销毁句柄
     *

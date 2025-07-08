@@ -25,7 +25,9 @@ public:
         return m_pModelPath.substr(pos + 1);
     }
     bool DrawInferRectResult(cv::Mat& frame,  std::vector<DetBox> &detResult);
-    bool CreateInstance(std::string strModelPath, const int device_id);
+    bool CreateInstance(std::string strModelPath, const int device_id, 
+                        const float conf_threshold, const float nms_threshold, 
+                        const int model_start_class_id);
     bool DestoryInstance();
 
 private:
@@ -42,10 +44,14 @@ AppYolov8obb::~AppYolov8obb() {
 }
 
 // 创建模型实例
-bool AppYolov8obb::CreateInstance(std::string strModelPath, const int device_id) 
+bool AppYolov8obb::CreateInstance(std::string strModelPath, const int device_id, 
+                                const float conf_threshold, const float nms_threshold, 
+                                const int model_start_class_id) 
 {
     //初始化获得句柄
-    ENUM_ERROR_CODE code = InitYolov8obbInferenceInstance(strModelPath.c_str(), &m_pYolov8obbInstance, device_id);
+    ENUM_ERROR_CODE code = InitYolov8obbInferenceInstance(strModelPath.c_str(), &m_pYolov8obbInstance,
+                                                        device_id, conf_threshold, 
+                                                        nms_threshold, model_start_class_id);
     if(ENUM_OK != code) {
         LOG_ERR("InitYolov8InferenceInstance, return %s", GetErrorCodeName(code));
         return false;
@@ -65,7 +71,7 @@ bool AppYolov8obb::DestoryInstance()
     return true;
  }
 
-bool AppYolov8obb::RunModelInference(cv::Mat &frame,  std::vector<DetBox> &detResult) 
+bool AppYolov8obb::RunModelInference(cv::Mat &frame, std::vector<DetBox> &detResult) 
 {
     if(frame.empty() ) {
         std::cout<<"frame is empty" <<std::endl;

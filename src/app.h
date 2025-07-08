@@ -56,33 +56,6 @@ std::map<ENUM_ERROR_CODE, std::string>  ErrCodeMapinfo =
         {ERR_ENCODER_CURRENT_FRAME_FAILED,"ERR_ENCODER_CURRENT_FRAME_FAILED"},
         {ERR_OPEN_PIPE_NAME_FAILED,"ERR_OPEN_PIPE_NAME_FAILED"},    
 
-        // 工业摄像头专用错误码定义
-        // {ERR_MVS_ENUM_IP_ADRESS,"ERR_MVS_ENUM_IP_ADRESS"},              
-        // {ERR_MVS_CANNOT_ONLINE_IP,"ERR_MVS_CANNOT_ONLINE_IP"},
-        // {ERR_MVS_UNSUPPORT_DEVICE_TYPE,"ERR_MVS_UNSUPPORT_DEVICE_TYPE"},
-        // {ERR_MVS_CREATE_HANDLE_FAILED,"ERR_MVS_CREATE_HANDLE_FAILED"},       
-        // {ERR_MVS_OPEN_DEVICE_FAILED,"ERR_MVS_OPEN_DEVICE_FAILED"},
-        // {ERR_MVS_SET_TRIGGER_FAILED,"ERR_MVS_SET_TRIGGER_FAILED"},
-        // {ERR_MVS_GET_PAYLOADSIZE_FAILED,"ERR_MVS_GET_PAYLOADSIZE_FAILED"},
-        // {ERR_MVS_SET_BINNING_NUMBER,"ERR_MVS_SET_BINNING_NUMBER"},
-        // {ERR_MVS_SET_EXPOSURE_FAILED,"ERR_MVS_SET_EXPOSURE_FAILED"},
-        // {ERR_MVS_GET_EXPOSURE_FAILED,"ERR_MVS_GET_EXPOSURE_FAILED"},     
-        // {ERR_MVS_SET_EXPOSURE_TIME_FAILED,"ERR_MVS_SET_EXPOSURE_TIME_FAILED"},
-        // {ERR_MVS_SET_GAINAUTO_FAILED,"ERR_MVS_SET_GAINAUTO_FAILED"},
-        // {ERR_MVS_SET_FRAMERATE_FAILED,"ERR_MVS_SET_FRAMERATE_FAILED"},     
-        // {ERR_MVS_START_GET_STREAM_FAILED,"ERR_MVS_START_GET_STREAM_FAILED"},     
-        // {ERR_MVS_INVALID_BINNING_PARAM,"ERR_MVS_INVALID_BINNING_PARAM"},
-        // {ERR_MVS_SET_BINNING_FAILED,"ERR_MVS_SET_BINNING_FAILED"},
-        // {ERR_MVS_GET_FRAME_TIMEOUT,"ERR_MVS_GET_FRAME_TIMEOUT"},     
-        // {ERR_MVS_CONVERT_MAT_FAILED,"ERR_MVS_CONVERT_MAT_FAILED"},     
-        // {ERR_MVS_DEVICE_DISCONNECT,"ERR_MVS_DEVICE_DISCONNECT"},     
-        // {ERR_MVS_STOP_GRABBING_FAILED,"ERR_MVS_STOP_GRABBING_FAILED"},
-        // {ERR_MVS_CLOSE_DEVICE_FAILED,"ERR_MVS_CLOSE_DEVICE_FAILED"},
-        // {ERR_MVS_DESTORY_HANDLE_FAILED,"ERR_MVS_DESTORY_HANDLE_FAILED"},  
-        // {ERR_MVS_CACHE_FRAMES_NOT_READY,"ERR_MVS_CACHE_FRAMES_NOT_READY"},    
-        // {ERR_MVS_SET_PIXRGB8FORMAT_FAILED,"ERR_MVS_SET_PIXRGB8FORMAT_FAILED"},  
-        // {ERR_MVS_GET_PIXRGB8FORMAT_FAILED,"ERR_MVS_GET_PIXRGB8FORMAT_FAILED"},  
-
         // 模型推理错误码定义
         {ERR_ROCKCHIP_LOAD_MODEL_FAILED,"ERR_ROCKCHIP_LOAD_MODEL_FAILED"},
         {ERR_ROCKCHIP_RKNN_INIT_FAILED,"ERR_ROCKCHIP_RKNN_INIT_FAILED"},
@@ -123,21 +96,6 @@ std::map<ENUM_ERROR_CODE, std::string>  ErrCodeMapinfo =
         {ERR_PROFILE_NOT_FOUND_SEARCH_KEYNAME,"ERR_PROFILE_NOT_FOUND_SEARCH_KEYNAME"},
         {ERR_PROFILE_CONFIG_ADD_OPTION_ERROR,"ERR_PROFILE_CONFIG_ADD_OPTION_ERROR"},
         {ERR_PROFILE_CONFIG_WRITE_ERROR,"ERR_PROFILE_CONFIG_WRITE_ERROR"},
-
-        // 红外相机错误码定义
-        // {ERR_HWJG_CAMERA_SERVER_INIT_FAILED,"ERR_HWJG_CAMERA_SERVER_INIT_FAILED"},
-        // {ERR_HWJG_CAMERA_DEVICE_INIT_FAILED,"ERR_HWJG_CAMERA_DEVICE_INIT_FAILED"},
-        // {ERR_HWJG_CAMERA_CONTACT_FAILED,"ERR_HWJG_CAMERA_CONTACT_FAILED"},
-        // {ERR_HWJG_GET_CAMERA_PARAM_FAILED,"ERR_HWJG_GET_CAMERA_PARAM_FAILED"},
-        // {ERR_HWJG_GET_RECT_TEMPERATURE_FAILED,"ERR_HWJG_GET_RECT_TEMPERATURE_FAILED"},
-        // {ERR_HWJG_CAMERA_START_FAILED,"ERR_HWJG_CAMERA_START_FAILED"},
-        // {ERR_HWJG_WAITING_TIMESTAMP_UPDATE,"ERR_HWJG_WAITING_TIMESTAMP_UPDATE"},
-        // {ERR_HWJG_TEMPERATURE_DATA_NOT_FAILED,"ERR_HWJG_TEMPERATURE_DATA_NOT_FAILED"},
-        // {ERR_HWJG_IMAGE_DATA_NOT_FAILED,"ERR_HWJG_IMAGE_DATA_NOT_FAILED"},
-        // {ERR_HWJG_DEVICE_DISLINKED,"ERR_HWJG_DEVICE_DISLINKED"},
-        // {ERR_HWIR_LOGIN_FAILED,"ERR_HWIR_LOGIN_FAILED"},
-        // {ERR_HWIR_INVALID_DETECT_POINT,"ERR_HWIR_INVALID_DETECT_POINT"},
-        // {ERR_HWIR_CACHE_TEMP_NOT_READY,"ERR_HWIR_CACHE_TEMP_NOT_READY"}
 };
 
 static const char* GetErrorCodeName(ENUM_ERROR_CODE code)
@@ -159,6 +117,7 @@ struct RtspServerParam {
     int switch_flag;
     int dtype;
     std::vector<std::string> model_types;
+    std::vector<std::string> model_names;
 };
 
 // rtsp区域参数结构体
@@ -178,15 +137,34 @@ struct RtspRegionParams{
 // HBB模型参数结构体
 struct HBBParam{
     std::string model_path;
+    std::string model_name;
     int model_switch;
-    int device_id;
+    int device;
+    int model_start_class_id;
+    float conf_thresh;
+    float nms_thresh;
 };
 
 // OBB模型参数结构体
 struct OBBParam{
     std::string model_path;
+    std::string model_name;
     int model_switch;
-    int device_id;
+    int device;
+    int model_start_class_id;
+    float conf_thresh;
+    float nms_thresh;
+};
+
+struct ModelParam {
+    std::string model_path;
+    std::string model_name;
+    std::string model_type;
+    int model_switch;
+    int device;
+    int model_start_class_id;
+    float conf_thresh;
+    float nms_thresh;
 };
 
 /*文件存储结构体*/
@@ -205,6 +183,7 @@ struct rtspframe{
     int rtsp_id;
     std::string timestamp;
     std::vector<std::string> model_types;
+    std::vector<std::string> model_names;
 };
 
 struct SharedData {
@@ -230,6 +209,7 @@ struct HTTPParam
 struct GlobalParam{
     int rtsp_num = 1;
     std::vector<std::string> model_types;
+    std::vector<std::string> model_names;
     std::unordered_map<std::string, int> typeIntervalMap;
     float window_high = 0.0;
     int hbb_classnum = 0;

@@ -3,19 +3,25 @@
     "models":[
             {
                 "name": "hbb",
+                "type": "hbb",
                 "path": "/home/kylin/nofar-ai-box/models/model8_b0.7m_20250523_hbb_cls10_action_v0.5.5_fp16.rknn",
-                "classnum": 10,
+                "model_start_class_id": 0,
                 "switch": 1,
                 "time": 1,
-                "device": 0
+                "device": 0,
+                "conf_thresh": 0.25,
+                "nms_thresh": 0.45
             },
             {
                 "name": "obb",
+                "type": "obb",
                 "path": "/home/kylin/nofar-ai-box/models/obb_class11s_device_0.2_u8.rknn",
-                "classnum": 11,
+                "model_start_class_id": 50,
                 "switch": 1,
                 "time": 3,
-                "device": 1
+                "device": 1,
+                "conf_thresh": 0.25,
+                "nms_thresh": 0.45
             }
         ],
     "frame_rate": 10,

@@ -11,7 +11,7 @@ extern "C"
      * @param  rtspurl                输入rtspurl流地址
      * @param  pRtspClientInstance    返回初始化成功后的句柄指针       
      * @param  decoder_type           0:配置RTSP流解码 1:配置视频文件解码 
-     * @param  timeout_reconnect      配置断网超时响应时间，默认5s后重连  
+     * @param  timeout_reconnect      配置断网超时响应时间，默认10s后重连  
      * @param  target_fps             配置目标解码器帧率
      * @param  only_key_frame         是否只解码关键帧，默认false          
      * @return ENUM_ERROR_CODE        返回错误码                  
@@ -20,7 +20,7 @@ extern "C"
         const char* rtspurl,
         void** pRtspClientInstance, 
         const int decoder_type = 0,
-        const int timeout_reconnect = 5,
+        const int timeout_reconnect = 10,
         const int target_fps = 1,
         const bool only_key_frame = false
     );	

@@ -1,6 +1,6 @@
 /*
  * @Description: 集成视觉相关小功能模块
- * @LastEditTime: 2024-09-05 18:00:32
+ * @LastEditTime: 2025-07-07 13:21:09
  */
 #pragma once
 
@@ -71,7 +71,7 @@ extern "C"
      * @return  ENUM_ERROR_CODE         返回错误码
      */
     void DrawRotatedRectForImage(
-        cv::Mat &image, 
+        cv::Mat &frame, 
         const std::vector<DetBox> detBoxs
     );
 
