@@ -19,9 +19,13 @@ public:
     virtual ~AppYolov8obb();
 
     bool RunModelInference(cv::Mat &frame, std::vector<DetBox> &detResult);
-  
+    std::string GetModelName() const {
+        size_t pos = m_pModelPath.find_last_of("/\\");
+        if (pos == std::string::npos) return m_pModelPath;
+        return m_pModelPath.substr(pos + 1);
+    }
     bool DrawInferRectResult(cv::Mat& frame,  std::vector<DetBox> &detResult);
-    bool CreateInstance(std::string strModelPath);
+    bool CreateInstance(std::string strModelPath, const int device_id);
     bool DestoryInstance();
 
 private:
@@ -38,10 +42,10 @@ AppYolov8obb::~AppYolov8obb() {
 }
 
 // 创建模型实例
-bool AppYolov8obb::CreateInstance(std::string strModelPath) 
+bool AppYolov8obb::CreateInstance(std::string strModelPath, const int device_id) 
 {
     //初始化获得句柄
-    ENUM_ERROR_CODE code = InitYolov8obbInferenceInstance(strModelPath.c_str(), &m_pYolov8obbInstance);
+    ENUM_ERROR_CODE code = InitYolov8obbInferenceInstance(strModelPath.c_str(), &m_pYolov8obbInstance, device_id);
     if(ENUM_OK != code) {
         LOG_ERR("InitYolov8InferenceInstance, return %s", GetErrorCodeName(code));
         return false;

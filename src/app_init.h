@@ -116,6 +116,7 @@ inline void InitConfigParam(const char* jsonfile,
             global_param.model_types.push_back("hbb");
             global_param.typeIntervalMap["hbb"] = model["time"].get<int>();
             hbb_cfg.model_switch = model["switch"].get<int>();
+            hbb_cfg.device_id = model["device"].get<int>(); // 新增设备ID
         }
         if (model["name"] == "obb") {
             obb_cfg.model_path = model["path"].get<std::string>();
@@ -123,6 +124,7 @@ inline void InitConfigParam(const char* jsonfile,
             global_param.model_types.push_back("obb");
             global_param.typeIntervalMap["obb"] = model["time"].get<int>();
             obb_cfg.model_switch = model["switch"].get<int>();
+            obb_cfg.device_id = model["device"].get<int>(); // 新增设备ID
         }
     }
 
@@ -160,7 +162,7 @@ inline std::optional<std::unique_ptr<AppType>> InitModelInfer(const std::string&
         return std::nullopt;
     }
 
-    bool bret = (*appInfer)->CreateInstance(modelcfg.model_path);
+    bool bret = (*appInfer)->CreateInstance(modelcfg.model_path, modelcfg.device_id);
     if (!bret) {
         return HandleInitialization<AppType>(modelName, false, "CreateInstance failed");
     }

@@ -114,13 +114,7 @@ double calculateIoU( const std::vector<cv::Point>& polygon, const std::vector<cv
 // }
 bool ReconnectCamera(std::unique_ptr<AppVideo> &rtspCamera, const RtspServerParam &rtspcfg) {
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    if (!rtspCamera) {
-        rtspCamera = std::make_unique<AppVideo>();
-    }
-    if (!rtspCamera->DestoryRtspDecoder()) {
-        std::cerr << "ReconnectCamera: DestoryRtspDecoder failed" << std::endl;
-        return false;
-    }
+    rtspCamera.reset(new AppVideo());
     if (!rtspCamera->CreateRtspDecoder(rtspcfg.url, rtspcfg.dtype)) {
         std::cerr << "ReconnectCamera: CreateRtspDecoder failed" << std::endl;
         return false;
@@ -284,8 +278,9 @@ void HBBProcess(std::unique_ptr<AppYolov8> &appfiresmoke, const rtspframe &frame
             }
         }   
     }
-    if (results.size() > 0){
-        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_hbb_" + frameData.timestamp + ".jpg";
+    if (results.size() > 0 && frameData.rtsp_id == 8){
+        std::string model_name = appfiresmoke->GetModelName();
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + model_name + "_" + frameData.timestamp + ".jpg";
         cv::imwrite(img_name, frameData.frame);
     }
 }
@@ -354,8 +349,9 @@ void OBBProcess(std::unique_ptr<AppYolov8obb> &appYolov8OBB, const rtspframe &fr
             }
         }   
     }
-    if (results.size() > 0){
-        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_obb_" + frameData.timestamp + ".jpg";
+    if (results.size() > 0 && frameData.rtsp_id == 8){
+        std::string model_name = appYolov8OBB->GetModelName();
+        std::string img_name = "rtsp_" + std::to_string(frameData.rtsp_id) + "_" + model_name + "_" + frameData.timestamp + ".jpg";
         cv::imwrite(img_name, frameData.frame);
     }
 }

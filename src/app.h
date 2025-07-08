@@ -179,12 +179,14 @@ struct RtspRegionParams{
 struct HBBParam{
     std::string model_path;
     int model_switch;
+    int device_id;
 };
 
 // OBB模型参数结构体
 struct OBBParam{
     std::string model_path;
     int model_switch;
+    int device_id;
 };
 
 /*文件存储结构体*/
