@@ -34,9 +34,9 @@ set(YAML_LIBPATH ${ROOT_PATH}/3rdlibs/yaml-cpp/source_code/build/install/lib)
 link_directories(${YAML_LIBPATH})
 set(YAML_LIBS yaml-cpp)
 # curl库
-find_package(CURL REQUIRED)
+find_package(CURL REQUIRED)    # sudo apt install -y libcurl4-openssl-dev
 # nlohmann_json库
-find_package(nlohmann_json 3.2.0 REQUIRED)
+find_package(nlohmann_json 3.2.0 REQUIRED)  # sudo apt install nlohmann-json3-dev
 # video decode
 set(VIDEODECODE_LIBS videodec-c++)
 # utils

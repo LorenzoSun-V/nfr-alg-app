@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     bool bDraw = appInfer->DrawInferRectResult(img,result);
     if(bDraw){
         imwrite("result.jpg",img);
-        waitKey(0);
+        // waitKey(0);
     }
 
     return 0;

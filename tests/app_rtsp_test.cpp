@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
             cv::imwrite(filename, frame);
 		}
 
-       waitKey(20);
+    //    waitKey(20);
 	}
 	DestoryRtspClientInstance(&pRtspClientInstance);
 

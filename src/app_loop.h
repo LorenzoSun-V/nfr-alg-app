@@ -419,7 +419,7 @@ void ConsumerThread(SharedData& sharedData,
             }
         }
         
-        std::cout << "Model " << modelName << " processing " << frames.size() << " frames" << std::endl;
+        // std::cout << "Model " << modelName << " processing " << frames.size() << " frames" << std::endl;
         
         // 处理帧数据
         for (const auto& frame : frames) {
